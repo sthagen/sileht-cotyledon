@@ -143,7 +143,7 @@ ignore = [
     "PLR0914", "PLR0912", "PLR0915",
 ]
 [tool.ruff.lint.per-file-ignores]
-"cotyledon/tests/*.py" = ["S101", "SLF001"]
+"cotyledon/tests/*.py" = ["S101", "SLF001", "PLR6301"]
 
 [tool.ruff.lint.isort]
 force-single-line = true

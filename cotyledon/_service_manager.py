@@ -121,11 +121,28 @@ class ServiceManager(_utils.SignalManager):
         self,
         wait_interval: float = 0.01,
         graceful_shutdown_timeout: int = 60,
+        mp_context: multiprocessing.context.BaseContext | None = None,
     ) -> None:
         """Creates the ServiceManager object
 
         :param wait_interval: time between each new process spawn
         :type wait_interval: float
+        :param graceful_shutdown_timeout: timeout for graceful shutdown
+        :type graceful_shutdown_timeout: int
+        :param mp_context: multiprocessing context to use (defaults to 'fork')
+        :type mp_context: multiprocessing.context.BaseContext | None
+
+        By default, workers are spawned using the 'fork' start method.
+        To use a different start method (e.g., 'spawn' for macOS compatibility),
+        pass the context via the mp_context parameter.
+
+        Example::
+
+            import multiprocessing
+            # Use 'spawn' start method (useful on macOS)
+            manager = ServiceManager(mp_context=multiprocessing.get_context('spawn'))
+            manager.add(MyService, workers=5)
+            manager.run()
 
         """
 
@@ -171,7 +188,12 @@ class ServiceManager(_utils.SignalManager):
         with contextlib.suppress(OSError, AttributeError):
             os.setsid()
 
-        self._death_detection_pipe = multiprocessing.Pipe(duplex=False)
+        # Default to multiprocessing (fork-compatible) if not provided
+        self.mp_context: multiprocessing.context.BaseContext = (
+            mp_context or multiprocessing.get_context()
+        )
+
+        self._death_detection_pipe = self.mp_context.Pipe(duplex=False)
 
         if os.name == "posix":
             signal.signal(signal.SIGCHLD, self._signal_catcher)
@@ -259,8 +281,8 @@ class ServiceManager(_utils.SignalManager):
         self,
         service: type[_service.Service],
         workers: int = 1,
-        args: _service_worker.ServiceArgsT | None = None,
-        kwargs: _service_worker.ServiceKwArgsT | None = None,
+        args: typing.Any = None,  # noqa: ANN401
+        kwargs: typing.Any = None,  # noqa: ANN401
     ) -> t.ServiceId:
         """Add a new service to the ServiceManager
 
@@ -318,7 +340,9 @@ class ServiceManager(_utils.SignalManager):
         """
 
         self._systemd_notify_once()
-        self._child_supervisor = _utils.spawn(self._child_supervisor_thread)
+        self._child_supervisor = _utils.spawn(
+            self._child_supervisor_thread,
+        )
         self._wait_forever()
 
     def _child_supervisor_thread(self) -> None:
@@ -508,11 +532,12 @@ class ServiceManager(_utils.SignalManager):
     def _start_worker(self, service_id: t.ServiceId, worker_id: t.WorkerId) -> None:
         self._slowdown_respawn_if_needed()
 
-        started_event = multiprocessing.Event()
+        started_event = self.mp_context.Event()
 
         # Create and run a new service
         p = _utils.spawn_process(
             _service_worker.ServiceWorker.create_and_wait,
+            self.mp_context,
             started_event,
             self._services[service_id],
             service_id,

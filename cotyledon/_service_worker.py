@@ -28,14 +28,6 @@ from cotyledon import types as t
 if typing.TYPE_CHECKING:
     import multiprocessing.connection
 
-try:
-    # Py 3.12+
-    from typing import Unpack  # type: ignore[attr-defined]
-except ImportError:
-    # Py 3.10-3.11
-    from typing_extensions import Unpack
-
-
 LOG = logging.getLogger(__name__)
 
 MultiprocessingPipe: typing.TypeAlias = tuple[
@@ -53,8 +45,6 @@ P = typing.ParamSpec("P")
 R = typing.TypeVar("R")
 
 ServiceT = typing.TypeVar("ServiceT", bound=_service.Service)
-ServiceArgsT: typing.TypeAlias = tuple[Unpack[P.args]]
-ServiceKwArgsT: typing.TypeAlias = dict[str, Unpack[P.kwargs]]
 
 
 class ServiceConfig(typing.Generic[ServiceT, P]):
@@ -63,8 +53,8 @@ class ServiceConfig(typing.Generic[ServiceT, P]):
         service_id: t.ServiceId,
         service: type[ServiceT],
         workers: int,
-        args: ServiceArgsT | None,
-        kwargs: ServiceKwArgsT | None,
+        args: typing.Any,  # noqa: ANN401
+        kwargs: typing.Any,  # noqa: ANN401
     ) -> None:
         self.service = service
         self.workers = workers

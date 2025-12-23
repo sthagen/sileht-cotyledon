@@ -65,7 +65,7 @@ class BuggyService(cotyledon.Service):
     name = "buggy"
     graceful_shutdown_timeout = 1
 
-    def terminate(self) -> None:  # noqa: PLR6301
+    def terminate(self) -> None:
         time.sleep(60)
         LOG.error("time.sleep done")
 
@@ -75,7 +75,7 @@ class BoomError(Exception):
 
 
 class BadlyCodedService(cotyledon.Service):
-    def run(self) -> None:  # noqa: PLR6301
+    def run(self) -> None:
         msg = "so badly coded service"
         raise BoomError(msg)
 

@@ -78,10 +78,15 @@ def check_callable(
 
 def spawn_process(
     target: typing.Callable[P, R],
+    ctx: multiprocessing.context.BaseContext | None = None,
     *args: P.args,
     **kwargs: P.kwargs,
 ) -> multiprocessing.Process:
-    p = multiprocessing.Process(
+    # typeshed doesn't expose "Process" on BaseContext, but it's there at runtime
+    process_factory = (
+        multiprocessing.Process if ctx is None else ctx.Process  # type: ignore[attr-defined]
+    )
+    p = process_factory(
         target=target,
         args=args,
         kwargs=kwargs,
@@ -90,18 +95,18 @@ def spawn_process(
     return p
 
 
-setproctitle: typing.Callable[[str], None] | None
+_setproctitle: typing.Callable[[str], None] | None
 try:
-    from setproctitle import setproctitle
+    from setproctitle import setproctitle as _setproctitle
 except ImportError:
-    setproctitle = None
+    _setproctitle = None
 
 
 def set_process_title(title: str) -> None:
-    if setproctitle is None:
+    if _setproctitle is None:
         return
 
-    setproctitle(title)
+    _setproctitle(title)
 
 
 def get_process_name() -> str:
